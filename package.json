@@ -1,0 +1,48 @@
+{
+  "name": "driverscan-pro",
+  "version": "1.0.0",
+  "description": "A modern Windows driver management application",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "concurrently \"cd src && npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
+    "build": "cd src && npm run build",
+    "package": "npm run build && electron-builder",
+    "postinstall": "cd src && npm install",
+    "clean": "rimraf dist src/dist"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "electron-store": "^8.1.0",
+    "node-powershell": "^5.0.1",
+    "systeminformation": "^5.21.7"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "electron": "^28.1.0",
+    "electron-builder": "^24.9.1",
+    "rimraf": "^5.0.5",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.driverscan.pro",
+    "productName": "DriverScan Pro",
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "files": [
+      "main.js",
+      "src/preload.js",
+      "src/dist/**/*",
+      "assets/**/*"
+    ]
+  }
+}
