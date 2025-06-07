@@ -248,116 +248,86 @@ function App() {
                 rows={4}
               />
               {errorSeverity && (
-                <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                  errorSeverity === 'CRITICAL' 
-                    ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                    : errorSeverity === 'WARNING'
-                    ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                    : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                <div className={`flex items-center space-x-2 ${
+                  errorSeverity === 'CRITICAL' ? 'text-red-500' :
+                  errorSeverity === 'WARNING' ? 'text-yellow-500' :
+                  'text-green-500'
                 }`}>
-                  <ExclamationTriangleIcon className="h-4 w-4 mr-1" />
-                  {errorSeverity}
+                  <ExclamationTriangleIcon className="h-5 w-5" />
+                  <span>Severity: {errorSeverity}</span>
                 </div>
               )}
             </div>
           </div>
 
           {/* Driver List */}
-          <div className={`rounded-lg shadow-sm overflow-hidden ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className={isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}>
-                  <tr>
-                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                      isDarkMode ? 'text-gray-300' : 'text-gray-500'
-                    }`}>
-                      Name
-                    </th>
-                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                      isDarkMode ? 'text-gray-300' : 'text-gray-500'
-                    }`}>
-                      Version
-                    </th>
-                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                      isDarkMode ? 'text-gray-300' : 'text-gray-500'
-                    }`}>
-                      Manufacturer
-                    </th>
-                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                      isDarkMode ? 'text-gray-300' : 'text-gray-500'
-                    }`}>
-                      Install Date
-                    </th>
-                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                      isDarkMode ? 'text-gray-300' : 'text-gray-500'
-                    }`}>
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className={`divide-y divide-gray-200 dark:divide-gray-700 ${
-                  isDarkMode ? 'bg-gray-800' : 'bg-white'
-                }`}>
-                  {drivers.map((driver) => (
-                    <tr
-                      key={driver.id}
-                      className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150 ${
-                        selectedDriver?.id === driver.id ? 'bg-gray-50 dark:bg-gray-700' : ''
-                      }`}
-                      onClick={() => setSelectedDriver(driver)}
-                    >
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${
-                        isDarkMode ? 'text-white' : 'text-gray-900'
-                      }`}>
-                        {driver.name}
-                      </td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-500'
-                      }`}>
-                        {driver.version}
-                      </td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-500'
-                      }`}>
-                        {driver.manufacturer}
-                      </td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-500'
-                      }`}>
-                        {driver.installDate}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            rollbackDriver(driver.deviceId)
-                          }}
-                          className={`inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md ${
-                            isDarkMode
-                              ? 'text-white bg-red-600 hover:bg-red-700'
-                              : 'text-white bg-red-600 hover:bg-red-700'
-                          } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
-                            isDarkMode ? 'focus:ring-offset-gray-800' : ''
-                          }`}
-                        >
-                          Rollback
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {drivers.length === 0 && (
+          {drivers.length > 0 && (
+            <div className={`rounded-lg shadow-sm overflow-hidden ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className={isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}>
                     <tr>
-                      <td colSpan="5" className={`px-6 py-4 text-center text-sm ${
-                        isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                      <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                        isDarkMode ? 'text-gray-300' : 'text-gray-500'
                       }`}>
-                        No drivers found. Click "Scan Drivers" to begin.
-                      </td>
+                        Device Name
+                      </th>
+                      <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                        isDarkMode ? 'text-gray-300' : 'text-gray-500'
+                      }`}>
+                        Driver Version
+                      </th>
+                      <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                        isDarkMode ? 'text-gray-300' : 'text-gray-500'
+                      }`}>
+                        Status
+                      </th>
+                      <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                        isDarkMode ? 'text-gray-300' : 'text-gray-500'
+                      }`}>
+                        Actions
+                      </th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className={`divide-y divide-gray-200 dark:divide-gray-700 ${
+                    isDarkMode ? 'bg-gray-800' : 'bg-white'
+                  }`}>
+                    {drivers.map((driver) => (
+                      <tr key={driver.deviceId}>
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                        }`}>
+                          {driver.deviceName}
+                        </td>
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                        }`}>
+                          {driver.driverVersion}
+                        </td>
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${
+                          driver.status === 'OK' ? 'text-green-500' :
+                          driver.status === 'Warning' ? 'text-yellow-500' :
+                          'text-red-500'
+                        }`}>
+                          {driver.status}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <button
+                            onClick={() => rollbackDriver(driver.deviceId)}
+                            className={`text-primary-600 hover:text-primary-900 ${
+                              isDarkMode ? 'text-primary-400 hover:text-primary-300' : ''
+                            }`}
+                          >
+                            Rollback
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </main>
     </div>

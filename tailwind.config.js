@@ -1,14 +1,8 @@
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
-
 /** @type {import('tailwindcss').Config} */
-export default {
+module.exports = {
   content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
+    "./src/**/*.{js,jsx,ts,tsx}",
   ],
-  darkMode: 'class',
   theme: {
     extend: {
       colors: {
