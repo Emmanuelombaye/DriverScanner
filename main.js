@@ -1,14 +1,118 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
-const path = require('path');
-const { exec } = require('child_process');
-const { promisify } = require('util');
-const execAsync = promisify(exec);
-const si = require('systeminformation');
-const fs = require('fs').promises;
-const Store = require('electron-store');
+import { app, BrowserWindow, ipcMain } from 'electron';
+import path from 'path';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import si from 'systeminformation';
+import { promises as fs } from 'fs';
+import Store from 'electron-store';
+import { pipeline } from '@xenova/transformers';
+import { fileURLToPath } from 'url';
+
+// Create __dirname equivalent for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Initialize electron store for settings
 const store = new Store();
+
+// Initialize the error analysis model
+let errorAnalysisModel = null;
+
+// Global error handler
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  // Optionally show a dialog to the user
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('error-occurred', {
+      message: 'An unexpected error occurred',
+      details: error.message
+    });
+  }
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('error-occurred', {
+      message: 'An unexpected error occurred',
+      details: reason.message || reason
+    });
+  }
+});
+
+// Load the error analysis model
+async function loadErrorAnalysisModel() {
+  try {
+    if (!errorAnalysisModel) {
+      console.log('Loading error analysis model...');
+      errorAnalysisModel = await pipeline('text-classification', 'Xenova/distilbert-base-uncased-finetuned-sst-2-english');
+      console.log('Error analysis model loaded successfully');
+    }
+    return errorAnalysisModel;
+  } catch (error) {
+    console.error('Error loading model:', error);
+    throw error;
+  }
+}
+
+// Preprocess error message for analysis
+function preprocessErrorMessage(errorMessage) {
+  if (!errorMessage || typeof errorMessage !== 'string') {
+    return '';
+  }
+  
+  // Convert to lowercase and remove special characters
+  return errorMessage.toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Analyze error message using DistilBERT
+async function analyzeErrorWithModel(errorMessage) {
+  try {
+    const model = await loadErrorAnalysisModel();
+    const preprocessedMessage = preprocessErrorMessage(errorMessage);
+    
+    if (!preprocessedMessage) {
+      return { severity: 'INFO', confidence: 1.0 };
+    }
+
+    // Get model prediction
+    const result = await model(preprocessedMessage);
+    
+    // Map model output to severity levels
+    // The model outputs a score between 0 and 1, where higher values indicate more negative sentiment
+    const score = result[0].score;
+    
+    let severity;
+    if (score > 0.8) {
+      severity = 'CRITICAL';
+    } else if (score > 0.5) {
+      severity = 'WARNING';
+    } else {
+      severity = 'INFO';
+    }
+
+    return {
+      severity,
+      confidence: score,
+      details: {
+        originalMessage: errorMessage,
+        preprocessedMessage,
+        modelOutput: result
+      }
+    };
+  } catch (error) {
+    console.error('Error analyzing message with model:', error);
+    return {
+      severity: 'INFO',
+      confidence: 0,
+      error: error.message
+    };
+  }
+}
 
 let mainWindow;
 
@@ -48,12 +152,24 @@ function createWindow() {
     loadURL();
   } else {
     // In production, load the built files
-    mainWindow.loadFile(path.join(__dirname, 'src/dist/index.html'));
+    mainWindow.loadFile(path.join(__dirname, 'src/dist/index.html'))
+      .catch(error => {
+        console.error('Failed to load production file:', error);
+        // Show error dialog
+        mainWindow.webContents.send('error-occurred', {
+          message: 'Failed to load application',
+          details: error.message
+        });
+      });
   }
 
   // Log any errors that occur during page load
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
     console.error('Failed to load:', errorCode, errorDescription);
+    mainWindow.webContents.send('error-occurred', {
+      message: 'Failed to load page',
+      details: errorDescription
+    });
   });
 
   mainWindow.on('closed', () => {
@@ -131,97 +247,74 @@ function analyzeErrorSeverity(errorMessage) {
 // Scan installed drivers
 async function scanDrivers() {
   try {
-    // Use a simpler PowerShell command first to test
-    const command = `
-      $ErrorActionPreference = 'Stop'
-      try {
-        $drivers = Get-WmiObject Win32_PnPSignedDriver | 
-          Where-Object { $_.DeviceName -ne $null } |
-          Select-Object DeviceName, DriverVersion, Manufacturer, InstallDate, DeviceID |
-          ConvertTo-Json -AsArray
-
-        if ($null -eq $drivers) {
-          Write-Error "No drivers found"
-          exit 1
-        }
-        Write-Output $drivers
-      } catch {
-        Write-Error $_.Exception.Message
-        exit 1
-      }
-    `;
-
-    console.log('Executing PowerShell command...');
+    console.log('Scanning drivers using systeminformation...');
     
-    // First, test if PowerShell is accessible
-    try {
-      await execAsync('powershell -Command "Get-Command"');
-    } catch (error) {
-      console.error('PowerShell test failed:', error);
-      throw new Error('PowerShell is not accessible. Please ensure PowerShell is installed and accessible.');
-    }
+    // Get detailed system information including drivers
+    const [system, osInfo] = await Promise.all([
+      si.system(),
+      si.osInfo()
+    ]);
 
-    // Run the actual command
-    const { stdout, stderr } = await execAsync(`powershell -NoProfile -ExecutionPolicy Bypass -Command "${command}"`);
+    // Get all USB devices which typically have drivers
+    const usbDevices = await si.usb();
     
-    if (stderr) {
-      console.error('PowerShell error:', stderr);
-      throw new Error(`PowerShell error: ${stderr}`);
-    }
-
-    if (!stdout || stdout.trim() === '') {
-      console.error('No output from PowerShell command');
-      throw new Error('No driver data received from PowerShell');
-    }
-
-    console.log('PowerShell output received:', stdout.substring(0, 100) + '...');
-
-    let drivers = [];
-    try {
-      // Parse the JSON output
-      const parsedData = JSON.parse(stdout);
-      drivers = Array.isArray(parsedData) ? parsedData : [parsedData];
-      
-      if (drivers.length === 0) {
-        throw new Error('No drivers found in the system');
-      }
-
-      console.log(`Successfully parsed ${drivers.length} drivers`);
-    } catch (parseError) {
-      console.error('Error parsing driver data:', parseError);
-      console.error('Raw output:', stdout);
-      throw new Error('Failed to parse driver data: ' + parseError.message);
-    }
+    // Get all disk drives
+    const diskLayout = await si.diskLayout();
     
-    // Process and format driver data with null checks
-    const processedDrivers = drivers.map((driver, index) => {
-      if (!driver || typeof driver !== 'object') {
-        console.warn(`Invalid driver data at index ${index}:`, driver);
-        return null;
-      }
+    // Get all network interfaces
+    const networkInterfaces = await si.networkInterfaces();
 
-      // Handle null values and format the data
-      return {
+    // Combine and process all device information
+    const drivers = [
+      ...usbDevices.map((device, index) => ({
         id: index + 1,
-        name: driver.DeviceName || 'Unknown Device',
-        version: driver.DriverVersion || 'Unknown Version',
-        manufacturer: driver.Manufacturer || 'Unknown Manufacturer',
-        deviceId: driver.DeviceID || '',
-        installDate: driver.InstallDate ? new Date(driver.InstallDate).toISOString().split('T')[0] : 'Unknown',
-        status: 'scanned'
-      };
-    }).filter(Boolean); // Remove any null entries
+        name: device.name || 'Unknown USB Device',
+        version: device.revision || 'Unknown Version',
+        manufacturer: device.manufacturer || 'Unknown Manufacturer',
+        deviceId: device.id || '',
+        installDate: 'Unknown', // systeminformation doesn't provide this
+        status: 'scanned',
+        type: 'USB'
+      })),
+      ...diskLayout.map((disk, index) => ({
+        id: usbDevices.length + index + 1,
+        name: disk.name || 'Unknown Disk',
+        version: disk.firmwareRevision || 'Unknown Version',
+        manufacturer: disk.manufacturer || 'Unknown Manufacturer',
+        deviceId: disk.device || '',
+        installDate: 'Unknown',
+        status: 'scanned',
+        type: 'Disk'
+      })),
+      ...networkInterfaces.map((nic, index) => ({
+        id: usbDevices.length + diskLayout.length + index + 1,
+        name: nic.iface || 'Unknown Network Interface',
+        version: nic.driver || 'Unknown Version',
+        manufacturer: nic.manufacturer || 'Unknown Manufacturer',
+        deviceId: nic.mac || '',
+        installDate: 'Unknown',
+        status: 'scanned',
+        type: 'Network'
+      }))
+    ];
 
-    if (processedDrivers.length === 0) {
-      throw new Error('No valid drivers found after processing');
+    if (drivers.length === 0) {
+      throw new Error('No drivers found in the system');
     }
 
-    console.log(`Successfully processed ${processedDrivers.length} drivers`);
+    console.log(`Successfully scanned ${drivers.length} devices`);
 
     // Save scan results to JSON file
     const scanResults = {
       timestamp: new Date().toISOString(),
-      drivers: processedDrivers
+      systemInfo: {
+        manufacturer: system.manufacturer,
+        model: system.model,
+        version: system.version,
+        os: osInfo.distro,
+        osVersion: osInfo.release
+      },
+      drivers: drivers
     };
 
     try {
@@ -235,7 +328,7 @@ async function scanDrivers() {
       // Don't throw here, as the scan was successful
     }
 
-    return processedDrivers;
+    return drivers;
   } catch (error) {
     console.error('Error scanning drivers:', error);
     throw new Error(`Failed to scan drivers: ${error.message}`);
@@ -263,34 +356,59 @@ function setThemePreference(theme) {
   store.set('theme', theme);
 }
 
-// IPC handlers
+// IPC Handlers
 ipcMain.handle('get-system-info', async () => {
-  return await getSystemInfo();
+  try {
+    return await getSystemInfo();
+  } catch (error) {
+    console.error('Error in get-system-info handler:', error);
+    throw error;
+  }
 });
 
 ipcMain.handle('scan-drivers', async () => {
-  return await scanDrivers();
+  try {
+    return await scanDrivers();
+  } catch (error) {
+    console.error('Error in scan-drivers handler:', error);
+    throw error;
+  }
 });
 
 ipcMain.handle('analyze-error', async (event, errorMessage) => {
   try {
-    const severity = analyzeErrorSeverity(errorMessage);
-    console.log('Analyzed error message:', { errorMessage, severity });
-    return severity;
+    const analysis = await analyzeErrorWithModel(errorMessage);
+    return analysis.severity;
   } catch (error) {
-    console.error('Error analyzing error message:', error);
+    console.error('Error in analyze-error handler:', error);
     return 'INFO';
   }
 });
 
 ipcMain.handle('rollback-driver', async (event, deviceId) => {
-  return await rollbackDriver(deviceId);
+  try {
+    return await rollbackDriver(deviceId);
+  } catch (error) {
+    console.error('Error in rollback-driver handler:', error);
+    throw error;
+  }
 });
 
-ipcMain.handle('get-theme', () => {
-  return getThemePreference();
+ipcMain.handle('get-theme', async () => {
+  try {
+    return store.get('theme', 'light');
+  } catch (error) {
+    console.error('Error in get-theme handler:', error);
+    return 'light';
+  }
 });
 
-ipcMain.handle('set-theme', (event, theme) => {
-  setThemePreference(theme);
+ipcMain.handle('set-theme', async (event, theme) => {
+  try {
+    store.set('theme', theme);
+    return true;
+  } catch (error) {
+    console.error('Error in set-theme handler:', error);
+    throw error;
+  }
 }); 

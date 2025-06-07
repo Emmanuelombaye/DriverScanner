@@ -7,7 +7,8 @@ const validChannels = [
   'analyze-error',
   'rollback-driver',
   'get-theme',
-  'set-theme'
+  'set-theme',
+  'error-occurred'
 ];
 
 // Expose protected methods that allow the renderer process to use
