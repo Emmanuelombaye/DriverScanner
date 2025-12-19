@@ -1,19 +1,64 @@
 # Dependencies
 node_modules/
+**/node_modules/
 dist/
+**/dist/
 out/
 build/
+dist-electron/
 
 # Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+pnpm-debug.log*
 
 # Electron packaging
 *.exe
 *.dmg
 *.app
 *.asar
+*.snap
+*.deb
+*.rpm
+*.pkg
+*.dmg
+
+# Build outputs
+*.tgz
+*.tar.gz
 
 # OS/IDE
 .DS_Store
-.env
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.swp
+*.swo
+*~
+.env.development.local
+.env.test.local
+.env.production.local
 .vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Testing
+coverage/
+.nyc_output/
+
+# Electron Store
+*.json.backup
+
+# System files
+scan-results.json
+config.bat
