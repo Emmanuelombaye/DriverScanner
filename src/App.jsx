@@ -109,6 +109,7 @@ function App() {
       }
       
       setDrivers(result)
+      console.log('Scanned drivers:', result)
     } catch (error) {
       console.error('Error scanning drivers:', error)
       const errorMessage = error?.message || 'Failed to scan drivers. Please try again.'
@@ -224,11 +225,34 @@ function App() {
           </div>
 
           {/* Error Analysis */}
-          <div className={`rounded-lg shadow-sm p-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-            <h3 className={`text-lg font-medium mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              Error Analysis
-            </h3>
-            <div className="space-y-4">
+          <div className={`rounded-xl shadow-sm p-6 border ${
+            isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
+          }`}>
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  Error Analysis
+                </h3>
+                <p className={`mt-1 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Paste any driver or system error message and we&apos;ll estimate its severity.
+                </p>
+              </div>
+              {errorSeverity && (
+                <span
+                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                    errorSeverity === 'CRITICAL'
+                      ? 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200'
+                      : errorSeverity === 'WARNING'
+                      ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-200'
+                      : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200'
+                  }`}
+                >
+                  <ExclamationTriangleIcon className="h-4 w-4 mr-1" />
+                  {errorSeverity}
+                </span>
+              )}
+            </div>
+            <div className="space-y-3">
               <textarea
                 value={errorMessage}
                 onChange={(e) => {
@@ -239,51 +263,88 @@ function App() {
                     setErrorSeverity('INFO')
                   }
                 }}
-                placeholder="Enter error message to analyze..."
-                className={`w-full rounded-md border ${
-                  isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                } focus:ring-primary-500 focus:border-primary-500`}
+                placeholder="Example: 'The device cannot start. (Code 10)' or any driver-related log..."
+                className={`w-full rounded-lg border text-sm resize-none ${
+                  isDarkMode
+                    ? 'bg-gray-900/60 border-gray-700 text-white placeholder-gray-500'
+                    : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400'
+                } focus:ring-2 focus:ring-primary-500 focus:border-primary-500`}
                 rows={4}
               />
-              {errorSeverity && (
-                <div className={`flex items-center space-x-2 ${
-                  errorSeverity === 'CRITICAL' ? 'text-red-500' :
-                  errorSeverity === 'WARNING' ? 'text-yellow-500' :
-                  'text-green-500'
-                }`}>
-                  <ExclamationTriangleIcon className="h-5 w-5" />
-                  <span>Severity: {errorSeverity}</span>
-                </div>
-              )}
             </div>
           </div>
 
-          {/* Driver List */}
-          {drivers.length > 0 && (
-            <div className={`rounded-lg shadow-sm overflow-hidden ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+          {/* Driver Overview + List */}
+          <div className="space-y-4">
+            {/* Overview cards */}
+            {drivers.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className={`rounded-xl p-4 border ${
+                  isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
+                }`}>
+                  <p className={`text-xs font-medium uppercase tracking-wide ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`}>
+                    Total Drivers
+                  </p>
+                  <p className={`mt-2 text-2xl font-semibold ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>
+                    {drivers.length}
+                  </p>
+                </div>
+                <div className={`rounded-xl p-4 border ${
+                  isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
+                }`}>
+                  <p className={`text-xs font-medium uppercase tracking-wide ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`}>
+                    Healthy
+                  </p>
+                  <p className="mt-2 text-2xl font-semibold text-emerald-500">
+                    {drivers.filter(d => d.status === 'OK').length}
+                  </p>
+                </div>
+                <div className={`rounded-xl p-4 border ${
+                  isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
+                }`}>
+                  <p className={`text-xs font-medium uppercase tracking-wide ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`}>
+                    Issues Detected
+                  </p>
+                  <p className="mt-2 text-2xl font-semibold text-amber-400">
+                    {drivers.filter(d => d.status !== 'OK').length}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Driver List */}
+            <div className={`rounded-xl shadow-sm overflow-hidden border ${
+              isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
+            }`}>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className={isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}>
+                  <thead className={isDarkMode ? 'bg-gray-700/70' : 'bg-gray-50'}>
                     <tr>
-                      <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-500'
+                      <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
+                        isDarkMode ? 'text-gray-300' : 'text-gray-600'
                       }`}>
                         Device Name
                       </th>
-                      <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-500'
+                      <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
+                        isDarkMode ? 'text-gray-300' : 'text-gray-600'
                       }`}>
                         Driver Version
                       </th>
-                      <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-500'
+                      <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
+                        isDarkMode ? 'text-gray-300' : 'text-gray-600'
                       }`}>
                         Status
                       </th>
-                      <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-500'
+                      <th className={`px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider ${
+                        isDarkMode ? 'text-gray-300' : 'text-gray-600'
                       }`}>
                         Actions
                       </th>
@@ -292,30 +353,57 @@ function App() {
                   <tbody className={`divide-y divide-gray-200 dark:divide-gray-700 ${
                     isDarkMode ? 'bg-gray-800' : 'bg-white'
                   }`}>
+                    {drivers.length === 0 && (
+                      <tr>
+                        <td
+                          colSpan={4}
+                          className={`px-6 py-10 text-center text-sm ${
+                            isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                          }`}
+                        >
+                          No drivers loaded yet. Click <span className="font-semibold">Scan Drivers</span> to
+                          analyze your system.
+                        </td>
+                      </tr>
+                    )}
+
                     {drivers.map((driver) => (
-                      <tr key={driver.deviceId}>
+                      <tr
+                        key={driver.deviceId}
+                        className="hover:bg-gray-50 dark:hover:bg-gray-700/70 transition-colors duration-150"
+                      >
                         <td className={`px-6 py-4 whitespace-nowrap text-sm ${
-                          isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                          isDarkMode ? 'text-gray-100' : 'text-gray-900'
                         }`}>
                           {driver.deviceName}
                         </td>
                         <td className={`px-6 py-4 whitespace-nowrap text-sm ${
-                          isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
                         }`}>
-                          {driver.driverVersion}
-                        </td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${
-                          driver.status === 'OK' ? 'text-green-500' :
-                          driver.status === 'Warning' ? 'text-yellow-500' :
-                          'text-red-500'
-                        }`}>
-                          {driver.status}
+                          {driver.driverVersion || 'Unknown'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              driver.status === 'OK'
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200'
+                                : driver.status === 'Warning'
+                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200'
+                                : 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200'
+                            }`}
+                          >
+                            {driver.status || 'Unknown'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                           <button
                             onClick={() => rollbackDriver(driver.deviceId)}
-                            className={`text-primary-600 hover:text-primary-900 ${
-                              isDarkMode ? 'text-primary-400 hover:text-primary-300' : ''
+                            className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md ${
+                              isDarkMode
+                                ? 'text-white bg-red-600 hover:bg-red-700'
+                                : 'text-white bg-red-600 hover:bg-red-700'
+                            } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
+                              isDarkMode ? 'focus:ring-offset-gray-900' : ''
                             }`}
                           >
                             Rollback
@@ -327,7 +415,7 @@ function App() {
                 </table>
               </div>
             </div>
-          )}
+          </div>
         </div>
       </main>
     </div>
